@@ -21,17 +21,17 @@ resource "random_password" "vm_admin" {
 # ── Key Vault ────────────────────────────────────────────────────────────────
 
 resource "azurerm_key_vault" "main" {
-  name                          = "${var.prefix}-kv-${random_string.suffix.result}"
-  location                      = azurerm_resource_group.main.location
-  resource_group_name           = azurerm_resource_group.main.name
-  tenant_id                     = data.azurerm_client_config.current.tenant_id
-  sku_name                      = "standard"
-  purge_protection_enabled      = true
-  soft_delete_retention_days    = 7
-  enable_rbac_authorization     = true
-  enabled_for_deployment        = true
+  name                            = "${var.prefix}-kv-${random_string.suffix.result}"
+  location                        = azurerm_resource_group.main.location
+  resource_group_name             = azurerm_resource_group.main.name
+  tenant_id                       = data.azurerm_client_config.current.tenant_id
+  sku_name                        = "standard"
+  purge_protection_enabled        = true
+  soft_delete_retention_days      = 7
+  enable_rbac_authorization       = true
+  enabled_for_deployment          = true
   enabled_for_template_deployment = true
-  tags                          = var.tags
+  tags                            = var.tags
 
   network_acls {
     default_action = "Allow"
