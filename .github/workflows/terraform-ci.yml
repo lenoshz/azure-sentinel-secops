@@ -32,10 +32,6 @@ jobs:
     name: "Lint → Validate → Security Scan"
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: terraform
-
     steps:
       # ── Checkout ──────────────────────────────────────────────────────
       - name: Checkout repository
@@ -50,31 +46,31 @@ jobs:
       # ── Format Check ──────────────────────────────────────────────────
       - name: Terraform Format Check
         id: fmt
-        run: terraform fmt -check -recursive -diff
+        run: terraform -chdir=terraform fmt -check -recursive
         continue-on-error: false
 
       # ── Initialize ────────────────────────────────────────────────────
       - name: Terraform Init
         id: init
-        run: terraform init -backend=false
+        run: terraform -chdir=terraform init -backend=false
 
       # ── Validate ──────────────────────────────────────────────────────
       - name: Terraform Validate
         id: validate
-        run: terraform validate -no-color
+        run: terraform -chdir=terraform validate
 
       # ── tfsec Security Scan ────────────────────────────────────────────
       - name: tfsec Security Scan
         uses: aquasecurity/tfsec-action@v1.0.0
         with:
-          working_directory: terraform
+          working_directory: ./terraform
           soft_fail: false
 
       # ── Checkov Security Scan ──────────────────────────────────────────
       - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: terraform
+          directory: ./terraform
           framework: terraform
           quiet: true
           soft_fail: false
