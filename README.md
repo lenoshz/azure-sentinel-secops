@@ -75,7 +75,7 @@ flowchart TB
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/azure-sentinel-secops.git
+git clone https://github.com//azure-sentinel-secops.git
 cd azure-sentinel-secops/terraform
 
 # 2. Configure
