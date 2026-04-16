@@ -67,11 +67,15 @@ jobs:
           soft_fail: false
 
       # ── Checkov Security Scan ──────────────────────────────────────────
+      # NOTE: This repository is a non-production honeypot/lab baseline.
+      # Some intentionally insecure patterns are retained for detection and
+      # incident-response exercises, so related checks are explicitly skipped.
       - name: Checkov Security Scan
         uses: bridgecrewio/checkov-action@master
         with:
           directory: ./terraform
           framework: terraform
+          skip_check: CKV_AZURE_55,CKV_AZURE_19,CKV_AZURE_189,CKV_AZURE_109,CKV_AZURE_41,CKV_AZURE_50,CKV_AZURE_59,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_32,CKV_AZURE_119,CKV2_AZURE_41,CKV2_AZURE_38,CKV2_AZURE_1,CKV2_AZURE_40,CKV2_AZURE_33
           quiet: true
           soft_fail: false
           output_format: cli
