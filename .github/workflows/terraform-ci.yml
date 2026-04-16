@@ -75,6 +75,7 @@ jobs:
         with:
           directory: ./terraform
           framework: terraform
+          # Intentional lab/honeypot baseline skips; remove these for production use.
           skip_check: CKV_AZURE_55,CKV_AZURE_19,CKV_AZURE_189,CKV_AZURE_109,CKV_AZURE_41,CKV_AZURE_50,CKV_AZURE_59,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_32,CKV_AZURE_119,CKV2_AZURE_41,CKV2_AZURE_38,CKV2_AZURE_1,CKV2_AZURE_40,CKV2_AZURE_33
           quiet: true
           soft_fail: false
