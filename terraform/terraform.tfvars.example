@@ -1,0 +1,43 @@
+# =============================================================================
+# terraform.tfvars.example — Sample variable values
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your actual values:
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# ⚠️  NEVER commit terraform.tfvars to version control — it contains secrets.
+#     The .gitignore in this repo already excludes it.
+# =============================================================================
+
+# Azure region where all resources will be deployed
+location = "eastus"
+
+# Name of the resource group (must be unique in your subscription)
+resource_group_name = "rg-sentinel-secops-lab"
+
+# Short prefix for resource names (3-10 lowercase alphanumeric characters)
+prefix = "secops"
+
+# Linux VM admin username
+admin_username = "azureadmin"
+
+# SSH public key for VM authentication (paste the contents of ~/.ssh/id_rsa.pub)
+admin_ssh_public_key = "ssh-rsa AAAA...your-key-here... user@host"
+
+# Your public IP address(es) allowed to SSH into the VM
+# Find yours: curl -s ifconfig.me
+allowed_ip_ranges = ["203.0.113.42/32"]
+
+# Monthly budget cap in USD — alerts fire at 80% actual and 100% forecasted
+budget_amount = 20
+
+# Email for budget alerts and Defender for Cloud notifications
+budget_alert_email = "you@example.com"
+
+# Tags applied to every resource (override defaults if needed)
+tags = {
+  Environment = "Lab"
+  Project     = "SentinelLab"
+  ManagedBy   = "Terraform"
+  Owner       = "YourName"
+}

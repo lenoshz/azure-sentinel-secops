@@ -1,0 +1,57 @@
+// =============================================================================
+// role_assignment_created.kql — Detect new Azure RBAC role assignments
+// =============================================================================
+// Purpose:       Monitors for successful creation of role assignments in Azure
+//                RBAC.  Unauthorized or unexpected role grants are a primary
+//                indicator of privilege escalation attacks.
+//
+// Data Source:    AzureActivity
+// MITRE Tactic:  Privilege Escalation (TA0004), Persistence (TA0003)
+// MITRE Technique: T1098 — Account Manipulation
+// Severity:      High
+//
+// Threshold Logic:
+//   - No numeric threshold — every successful role assignment fires an alert.
+//   - Rationale: Role assignments are infrequent, high-impact operations.  In a
+//     lab environment there is no legitimate automation creating roles, so
+//     every event warrants review.  In production, add an exclusion list for
+//     known service principals (e.g., PIM, CI/CD pipelines).
+//
+// Column Types:
+//   TimeGenerated     : datetime
+//   Caller            : string  (UPN or service principal ID)
+//   RoleAssigned      : string  (JSON body of the role assignment request)
+//   RoleDefinitionId  : string  (e.g., /providers/Microsoft.Authorization/...)
+//   PrincipalId       : string  (Object ID of principal receiving the role)
+//   Scope             : string  (Resource scope of the assignment)
+//   ResourceGroup     : string
+//   SubscriptionId    : string
+//   CorrelationId     : string
+// =============================================================================
+
+AzureActivity
+| where TimeGenerated > ago(24h)
+| where OperationNameValue =~ "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
+| where ActivityStatusValue == "Success"
+| extend
+    RequestBody      = parse_json(tostring(Properties.requestbody)),
+    RoleDefId        = tostring(Properties.roleDefinitionId),
+    PrincipalId      = tostring(Properties.principalId),
+    Scope            = tostring(Properties.scope)
+| extend
+    RoleDefinitionId = tostring(RequestBody.properties.roleDefinitionId),
+    AssignedPrincipal = tostring(RequestBody.properties.principalId),
+    PrincipalType    = tostring(RequestBody.properties.principalType)
+| project
+    TimeGenerated,
+    Caller,
+    RoleAssigned       = tostring(Properties.requestbody),
+    RoleDefinitionId,
+    AssignedPrincipal,
+    PrincipalType,
+    Scope,
+    ResourceGroup,
+    SubscriptionId,
+    CorrelationId,
+    CallerIpAddress
+| order by TimeGenerated desc

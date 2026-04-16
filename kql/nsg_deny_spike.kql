@@ -1,0 +1,81 @@
+// =============================================================================
+// nsg_deny_spike.kql — Detect anomalous spikes in NSG deny events
+// =============================================================================
+// Purpose:       Identifies sudden spikes in Network Security Group (NSG)
+//                denied flows that may indicate port scanning, network
+//                reconnaissance, or lateral-movement attempts.
+//
+// Data Source:    AzureNetworkAnalytics_CL (Traffic Analytics)
+// MITRE Tactic:  Discovery (TA0007), Reconnaissance (TA0043)
+// MITRE Technique: T1046 — Network Service Discovery
+// Severity:      Low–Medium
+//
+// Threshold Logic:
+//   - Time window: 5-minute bins
+//   - Spike condition: Current bin deny count > 3× average of prior 6 bins
+//     (i.e., prior 30 minutes)
+//   - Rationale: A 3× multiplier on a 30-minute rolling baseline filters out
+//     normal fluctuations while catching genuine reconnaissance bursts.  Port
+//     scans typically produce hundreds of denied flows in seconds, so even a
+//     conservative 3× multiplier fires reliably.  Adjust the multiplier up in
+//     noisy environments.
+//
+// Column Types:
+//   TimeWindow           : datetime
+//   NSGName              : string
+//   DenyCount            : long
+//   BaselineAvg          : real
+//   SpikeRatio           : real
+//   TopDeniedPorts       : dynamic
+//   TopSourceIPs         : dynamic
+// =============================================================================
+
+let spikeMultiplier = 3.0;
+let binSize = 5m;
+let baselineBins = 6;   // 6 × 5m = 30 minutes of baseline
+let lookback = binSize * (baselineBins + 1);  // Cover baseline + current bin
+// Step 1: Aggregate deny counts per 5-minute window per NSG
+let DenyCounts = AzureNetworkAnalytics_CL
+    | where TimeGenerated > ago(lookback)
+    | where FlowStatus_s == "D"                             // Denied flows
+       or   NSGRule_s    has "Deny"                          // Fallback match
+    | summarize
+        DenyCount       = count(),
+        TopDeniedPorts  = make_set(DestPort_d, 10),
+        TopSourceIPs    = make_set(SrcIP_s, 10)
+        by
+            TimeWindow  = bin(TimeGenerated, binSize),
+            NSGName     = tostring(NSGList_s)
+    ;
+// Step 2: Compute rolling baseline average (prior bins, excluding current)
+let Baseline = DenyCounts
+    | serialize
+    | extend PrevCounts = prev(DenyCount, 1), Bin2 = prev(DenyCount, 2),
+             Bin3 = prev(DenyCount, 3), Bin4 = prev(DenyCount, 4),
+             Bin5 = prev(DenyCount, 5), Bin6 = prev(DenyCount, 6)
+    ;
+// Alternative approach: self-join for baseline — more robust with sparse data
+DenyCounts
+| join kind=inner (
+    DenyCounts
+    | extend BaselineWindow = TimeWindow  // Alias for clarity
+) on NSGName
+| where TimeWindow > BaselineWindow
+    and  TimeWindow <= BaselineWindow + lookback
+    and  TimeWindow != BaselineWindow
+| summarize
+    BaselineAvg = avg(DenyCount1)
+    by TimeWindow, NSGName, DenyCount, TopDeniedPorts, TopSourceIPs
+| extend
+    SpikeRatio = iff(BaselineAvg > 0, round(toreal(DenyCount) / BaselineAvg, 2), toreal(DenyCount))
+| where SpikeRatio >= spikeMultiplier
+    and   DenyCount >= 10               // Minimum absolute count to avoid false positives on low baselines
+| project
+    TimeWindow,
+    NSGName,
+    DenyCount,
+    BaselineAvg = round(BaselineAvg, 1),
+    SpikeRatio,
+    TopDeniedPorts,
+    TopSourceIPs
+| order by SpikeRatio desc

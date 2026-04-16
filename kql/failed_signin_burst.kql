@@ -1,0 +1,71 @@
+// =============================================================================
+// failed_signin_burst.kql — Detect brute-force sign-in attempts
+// =============================================================================
+// Purpose:       Identifies bursts of failed sign-in attempts from a single IP
+//                address within a 10-minute window, indicating possible brute-
+//                force or credential-stuffing attacks.
+//
+// Data Source:    SigninLogs, AADNonInteractiveUserSignInLogs
+// MITRE Tactic:  Credential Access (TA0006)
+// MITRE Technique: T1110 — Brute Force
+// Severity:      Medium
+//
+// Threshold Logic:
+//   - Time window: 10-minute bins
+//   - Alert when: ≥ 5 failed sign-ins from the same IP targeting the same user
+//   - Rationale: Legitimate users rarely fail 5+ times in 10 minutes.  This
+//     threshold balances signal fidelity against noise from MFA typos or
+//     password manager sync delays.  Adjust upward in environments with heavy
+//     SSO retry traffic.
+//
+// Column Types:
+//   TimeWindow        : datetime
+//   IPAddress          : string
+//   UserPrincipalName  : string
+//   FailureCount       : long
+//   Location           : string (City, State, CountryOrRegion)
+//   AppDisplayName     : string
+//   FailureReasons     : dynamic (set of ResultDescription values)
+// =============================================================================
+
+let threshold = 5;
+let timeWindow = 10m;
+// Combine interactive and non-interactive sign-in logs for full coverage
+let SignInData = union isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType != "0"  // Non-zero ResultType = failed sign-in
+    | extend
+        City          = tostring(LocationDetails.city),
+        State         = tostring(LocationDetails.state),
+        Country       = tostring(LocationDetails.countryOrRegion),
+        LocationStr   = strcat(
+                            tostring(LocationDetails.city), ", ",
+                            tostring(LocationDetails.state), ", ",
+                            tostring(LocationDetails.countryOrRegion)
+                        )
+    ;
+SignInData
+| summarize
+    FailureCount     = count(),
+    FailureReasons   = make_set(ResultDescription, 5),
+    AppDisplayNames  = make_set(AppDisplayName, 5),
+    FirstAttempt     = min(TimeGenerated),
+    LastAttempt      = max(TimeGenerated),
+    Location         = take_any(LocationStr)
+    by
+        TimeWindow   = bin(TimeGenerated, timeWindow),
+        IPAddress,
+        UserPrincipalName
+| where FailureCount >= threshold
+| project
+    TimeWindow,
+    IPAddress,
+    UserPrincipalName,
+    FailureCount,
+    Location,
+    AppDisplayNames,
+    FailureReasons,
+    FirstAttempt,
+    LastAttempt,
+    Duration = LastAttempt - FirstAttempt
+| order by FailureCount desc

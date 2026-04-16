@@ -1,0 +1,37 @@
+# .gitignore — Azure Sentinel SecOps Lab
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Secrets and credentials
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Screenshots (user-generated, not tracked)
+screenshots/
+
+# OS files
+desktop.ini
